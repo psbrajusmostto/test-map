@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Verificar Zona de Influencia</title>
+  <style>
+    #map { height: 500px; width: 100%; margin-top:10px; }
+    #form { margin-bottom: 10px; }
+    #resultado { font-weight: bold; margin-top: 5px; }
+    ul { margin: 5px 0; padding-left: 20px; }
+  </style>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCZHevEztqrlkvoZq2URteV8fTBk4u5k0c&libraries=geometry&callback=initMap" async defer></script>
+</head>
+<body>
+  <h3>Verificar Zona de Influencia de Depósitos</h3>
+
+  <div id="form">
+    <input type="text" id="direccion" placeholder="Ingrese dirección" size="50">
+    <button onclick="verificarDireccion()">Verificar</button>
+  </div>
+
+  <div id="resultado"></div>
+  <div id="map"></div>
+
+  <script>
+    let map;
+    let geocoder;
+    let marker;
+    let circuloActual = null;
+
+    // Lista de depósitos
+    const depositos = [
+      { nombre: "Concepcion del Uruguay", lat:-32.4737, lng:-58.3524, radio: 100000},
+      { nombre : "Colon" , lat: -32.2141812,lng: -58.2472728, radio: 100000},
+      { nombre: "Concordia", lat: -31.3622927,lng:-58.1059983, radio: 10000},
+      {nombre: "Federacion" , lat: -30.9984964,lng: -57.9271938, radio:10000},
+      {nombre: "Parana", lat: -31.747292, lng: -60.5973644, radio:300000},
+      {nombre: "Gualeguay" , lat : -33.1446492,lng :-59.3560524,radio:200000},
+      {nombre: "CTC Centro de carga y sucursal", lat:-34.6682273,lng:-58.439864, radio:500000}
+
+
+      
+    ];
+
+    function initMap() {
+      map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 7,
+        center: { lat: -31.747292, lng: -60.5973644 }
+      });
+
+      geocoder = new google.maps.Geocoder();
+
+      // Dibujar solo marcadores
+      depositos.forEach(dep => {
+        new google.maps.Marker({
+          position: { lat: dep.lat, lng: dep.lng },
+          map: map,
+          title: dep.nombre
+        });
+      });
+    }
+
+    function verificarDireccion() {
+      const direccion = document.getElementById("direccion").value;
+      if (!direccion) return alert("Ingrese una dirección");
+
+      geocoder.geocode({ address: direccion }, (results, status) => {
+        if (status === "OK") {
+          const pos = results[0].geometry.location;
+
+          // Colocar marcador azul en la dirección buscada
+          if (marker) marker.setMap(null);
+          marker = new google.maps.Marker({
+            map: map,
+            position: pos,
+            title: "Ubicación buscada",
+            icon: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+          });
+
+          map.setCenter(pos);
+
+          // Verificar si está dentro de alguna zona
+          let zonasEncontradas = [];
+          depositos.forEach(dep => {
+            const distancia = google.maps.geometry.spherical.computeDistanceBetween(
+              pos,
+              new google.maps.LatLng(dep.lat, dep.lng)
+            );
+            if (distancia <= dep.radio) {
+              zonasEncontradas.push({ ...dep, distancia });
+            }
+          });
+
+          if (zonasEncontradas.length > 0) {
+            // Ordenar por distancia
+            zonasEncontradas.sort((a, b) => a.distancia - b.distancia);
+
+            // Más cercana
+            const zonaCercana = zonasEncontradas[0];
+
+            // Mostrar listado
+            let html = `<p>Sí, está dentro de ${zonasEncontradas.length} zona(s):</p><ul>`;
+            zonasEncontradas.forEach(z => {
+              html += `<li><strong>${z.nombre}</strong> (Distancia: ${(z.distancia/1000).toFixed(2)} km)</li>`;
+            });
+            html += "</ul>";
+            html += `<p>La más cercana es: <strong>${zonaCercana.nombre}</strong></p>`;
+
+            document.getElementById("resultado").innerHTML = html;
+
+            // Remover círculo anterior si existía
+            if (circuloActual) circuloActual.setMap(null);
+
+            // Dibujar círculo de la zona más cercana
+            circuloActual = new google.maps.Circle({
+              map: map,
+              center: { lat: zonaCercana.lat, lng: zonaCercana.lng },
+              radius: zonaCercana.radio,
+              strokeColor: "#FF0000",
+              strokeOpacity: 0.8,
+              strokeWeight: 2,
+              fillColor: "#FF0000",
+              fillOpacity: 0.2
+            });
+
+          } else {
+            document.getElementById("resultado").innerHTML = "No está dentro de ninguna zona de influencia";
+
+            if (circuloActual) circuloActual.setMap(null);
+          }
+
+        } else {
+          alert("Geocoding falló: " + status);
+        }
+      });
+    }
+  </script>
+</body>
+</html>

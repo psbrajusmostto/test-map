@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Depósitos con Zonas de Influencia</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCZHevEztqrlkvoZq2URteV8fTBk4u5k0c&callback=initMap" 
+      async defer></script>
+    <style>
+      #map {
+        height: 500px;
+        width: 100%;
+      }
+      .leyenda {
+        background-color: white;
+        border: 1px solid #333;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      }
+    </style>
+  </head>
+  <body>
+    <h3>Mapa de Depósitos con Zonas de Influencia</h3>
+    <div id="map"></div>
+    <script>
+      const depositos = [
+        { nombre: "Depósito Central", direccion: "Av. Central 123", lat: -34.6037, lng: -58.3816, radio: 5000 },
+        { nombre: "Depósito Norte", direccion: "Calle Norte 456", lat: -34.5400, lng: -58.7000, radio: 3000 },
+        { nombre: "Depósito Sur", direccion: "Av. Sur 789", lat: -34.7000, lng: -58.4000, radio: 4000 }
+      ];
+
+      function initMap() {
+        const map = new google.maps.Map(document.getElementById("map"), {
+          zoom: 10,
+          center: { lat: -34.6037, lng: -58.3816 }
+        });
+
+        depositos.forEach(dep => {
+          // Marcador
+          const marker = new google.maps.Marker({
+            position: { lat: dep.lat, lng: dep.lng },
+            map: map,
+            title: dep.nombre
+          });
+
+          // Leyenda usando OverlayView
+          class LeyendaOverlay extends google.maps.OverlayView {
+            constructor(pos, content) {
+              super();
+              this.pos = pos;
+              this.content = content;
+            }
+            onAdd() {
+              this.div = document.createElement('div');
+              this.div.className = 'leyenda';
+              this.div.innerHTML = this.content;
+              const panes = this.getPanes();
+              panes.overlayLayer.appendChild(this.div);
+            }
+            draw() {
+              const overlayProjection = this.getProjection();
+              const pos = overlayProjection.fromLatLngToDivPixel(this.pos);
+              if (pos) {
+                this.div.style.left = pos.x + 'px';
+                this.div.style.top = pos.y - 30 + 'px';
+              }
+            }
+            onRemove() {
+              if (this.div) this.div.parentNode.removeChild(this.div);
+            }
+          }
+
+          const leyenda = new LeyendaOverlay(
+            new google.maps.LatLng(dep.lat, dep.lng),
+            `<strong>${dep.nombre}</strong><br>${dep.direccion}`
+          );
+          leyenda.setMap(map);
+
+          // Zona de influencia (círculo)
+          const circle = new google.maps.Circle({
+            strokeColor: "#FF0000",
+            strokeOpacity: 0.8,
+            strokeWeight: 2,
+            fillColor: "#FF0000",
+            fillOpacity: 0.2,
+            map: map,
+            center: { lat: dep.lat, lng: dep.lng },
+            radius: dep.radio
+          });
+        });
+      }
+    </script>
+  </body>
+</html>
+
